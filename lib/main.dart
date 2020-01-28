@@ -26,12 +26,49 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool _lampStatus = true;
+  bool _connectivityWifi = false;
+  var subscription;
+  /* void ConnectivityWifi() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.wifi) {
+      // I am connected to a wifi network.
+    }
+  } */
+  @override
+  initState() {
+    super.initState();
+
+    subscription = Connectivity()
+        .onConnectivityChanged
+        .listen((ConnectivityResult result) {
+      // Got a new connectivity status!
+      print(" switched ");
+      if (result == ConnectivityResult.wifi) {
+        print("Connected to wifi ");
+        setState(() {
+          _connectivityWifi = true;
+        });
+      } else {
+         setState(() {
+          _connectivityWifi = false;
+        });
+      }
+    });
+  }
+
+// Be sure to cancel subscription after you are done
+  @override
+  dispose() {
+    super.dispose();
+    subscription.cancel();
+  }
+
   Future<void> _action() async {
     print("presed");
-     setState(() {
-        _lampStatus = !_lampStatus;
-      });
-   /*  var response = await http.get('http://46.101.148.188/api/status');
+    setState(() {
+      _lampStatus = !_lampStatus;
+    });
+    /*  var response = await http.get('http://46.101.148.188/api/status');
     print(response.body);
     if (response.statusCode == 200) {
       print("success");
@@ -47,7 +84,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         body: Center(
-      child: AvatarGlow(
+      child:_connectivityWifi?
+      AvatarGlow(
         startDelay: Duration(milliseconds: 1000),
         glowColor: _lampStatus ? Colors.yellow : Colors.black,
         endRadius: 100.0,
@@ -70,7 +108,7 @@ class _HomePageState extends State<HomePage> {
         shape: BoxShape.circle,
         animate: true,
         curve: Curves.fastOutSlowIn,
-      ),
+      ):Text("Please Connect to wifi network")
     ));
   }
 }
