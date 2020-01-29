@@ -33,8 +33,12 @@ class _HomePageState extends State<HomePage> {
   bool _connectivityWifi = false;
   String _deviceAdress = null;
   var subscription;
+  bool _loading = true;
 
   void connectedWifiDevices(int port) async {
+    setState(() {
+      _loading = true;
+    });
     final String ip = await Wifi.ip;
     final String subnet = ip.substring(0, ip.lastIndexOf('.'));
     final stream = NetworkAnalyzer.discover2(subnet, port);
@@ -52,6 +56,7 @@ class _HomePageState extends State<HomePage> {
       if (found == 0) {
         setState(() {
           _deviceAdress = null;
+          _loading = false;
         });
       } else {
         initLampStatus();
@@ -67,9 +72,13 @@ class _HomePageState extends State<HomePage> {
       print("resStatus " + resStatus);
       setState(() {
         _lampStatus = resStatus;
+        _loading = false;
       });
     } else {
       print("error");
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
@@ -82,15 +91,20 @@ class _HomePageState extends State<HomePage> {
         .listen((ConnectivityResult result) {
       // Got a new connectivity status!
       print(" switched ");
+      setState(() {
+        _loading = true;
+      });
       if (result == ConnectivityResult.wifi) {
         print("Connected to wifi ");
         connectedWifiDevices(89);
         setState(() {
           _connectivityWifi = true;
+          _loading = false;
         });
       } else {
         setState(() {
           _connectivityWifi = false;
+          _loading = false;
         });
       }
     });
@@ -105,6 +119,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _action() async {
     if (_deviceAdress != null) {
+      setState(() {
+        _loading = true;
+      });
       String statusToSend = _lampStatus == "on" ? "off" : "on";
       print(statusToSend);
       var response = await http.get("http://$_deviceAdress/26/$statusToSend");
@@ -114,6 +131,7 @@ class _HomePageState extends State<HomePage> {
         print(resStatus == "on");
         setState(() {
           _lampStatus = resStatus;
+          _loading = false;
         });
       } else {
         print("error");
@@ -126,40 +144,55 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Center(
-            child: _connectivityWifi
-                ? _deviceAdress != null
-                    ? AvatarGlow(
-                        startDelay: Duration(milliseconds: 1000),
-                        glowColor:
-                            _lampStatus == "on" ? Colors.yellow : Colors.black,
-                        endRadius: 100.0,
-                        duration: Duration(milliseconds: 2000),
-                        repeat: true,
-                        showTwoGlows: true,
-                        repeatPauseDuration: Duration(milliseconds: 100),
-                        child: Material(
-                          elevation: 8.0,
-                          color: Theme.of(context).primaryColor,
-                          shape: CircleBorder(),
-                          child: Container(
-                            child: IconButton(
-                              color: _lampStatus == "on"
-                                  ? Colors.yellow
-                                  : Colors.grey,
-                              icon: Icon(Icons.lightbulb_outline),
-                              onPressed: () => _action(),
+      body: Center(
+          child: (!_loading)
+              ? _connectivityWifi
+                  ? _deviceAdress != null
+                      ? AvatarGlow(
+                          startDelay: Duration(milliseconds: 1000),
+                          glowColor: _lampStatus == "on"
+                              ? Colors.yellow
+                              : Colors.black,
+                          endRadius: 100.0,
+                          duration: Duration(milliseconds: 2000),
+                          repeat: true,
+                          showTwoGlows: true,
+                          repeatPauseDuration: Duration(milliseconds: 100),
+                          child: Material(
+                            elevation: 8.0,
+                            color: Theme.of(context).primaryColor,
+                            shape: CircleBorder(),
+                            child: Container(
+                              child: IconButton(
+                                color: _lampStatus == "on"
+                                    ? Colors.yellow
+                                    : Colors.grey,
+                                icon: Icon(Icons.lightbulb_outline),
+                                onPressed: () => _action(),
+                              ),
                             ),
                           ),
-                        ),
-                        shape: BoxShape.circle,
-                        animate: true,
-                        curve: Curves.fastOutSlowIn,
-                      )
-                    : IconButton(
-                        icon: Icon(Icons.refresh),
-                        onPressed: () => connectedWifiDevices(89),
-                      )
-                : Text("Please Connect to wifi network")));
+                          shape: BoxShape.circle,
+                          animate: true,
+                          curve: Curves.fastOutSlowIn,
+                        )
+                      : Text("No devices founded on this wifi")
+                  : Text("Please Connect to wifi network")
+              : CircularProgressIndicator()),
+      floatingActionButton: Visibility(
+        visible: _deviceAdress == null && _connectivityWifi ? true : false,
+        child: FloatingActionButton(
+          tooltip: "Refresh again",
+          backgroundColor: Colors.grey,
+          child: Icon(
+            Icons.refresh,
+            color: Colors.white,
+          ),
+          onPressed: () => connectedWifiDevices(89),
+          mini: true,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
   }
 }
